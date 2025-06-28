@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ask a Question - AI Study Buddy</title>
+  <style>
+    /* Dark purple background */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a0033; /* Very dark purple */
+      color: #eee;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      user-select: none;
+    }
+
+    h1 {
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: #a366ff; /* Light purple accent */
+      text-align: center;
+      user-select: text;
+    }
+
+    label {
+      display: block;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #cbbcff;
+      user-select: text;
+    }
+
+    select, textarea, button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1.5px solid #4b2e83;
+      font-size: 1rem;
+      box-sizing: border-box;
+      font-family: inherit;
+      outline-offset: 2px;
+      transition: border-color 0.3s ease, background-color 0.3s ease;
+      background-color: #2b0e66;
+      color: #eee;
+      resize: vertical;
+    }
+
+    select:hover, textarea:hover, button:hover:not(:disabled) {
+      border-color: #a366ff;
+      background-color: #3b1f99;
+      cursor: pointer;
+    }
+
+    select:focus, textarea:focus, button:focus {
+      border-color: #d7b8ff;
+      background-color: #3b1f99;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 120px;
+      line-height: 1.5;
+    }
+
+    button {
+      margin-top: 25px;
+      background-color: #a366ff;
+      color: #1a0033;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      user-select: none;
+      box-shadow: 0 4px 10px rgba(163, 102, 255, 0.5);
+    }
+
+    button:disabled {
+      background-color: #4b2e83;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    #answer {
+      margin-top: 30px;
+      background: #331a66;
+      padding: 18px;
+      border-radius: 8px;
+      min-height: 80px;
+      white-space: pre-wrap;
+      font-size: 1.15rem;
+      line-height: 1.5;
+      color: #d7b8ff;
+      box-shadow: inset 0 0 15px #5e3fb8;
+      user-select: text;
+    }
+
+    /* Responsive */
+    @media (max-width: 400px) {
+      body {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Ask a Question</h1>
+
+  <label for="material">Select Material</label>
+  <select id="material">
+    <option value="">-- Select material --</option>
+    <!-- Options populated by JS -->
+  </select>
+
+  <label for="question">Your Question</label>
+  <textarea id="question" placeholder="Type your question here..."></textarea>
+
+  <button id="askBtn" disabled>Ask</button>
+
+  <div id="answer"></div>
+
+  <script>
+    const materialSelect = document.getElementById('material');
+    const questionInput = document.getElementById('question');
+    const askBtn = document.getElementById('askBtn');
+    const answerDiv = document.getElementById('answer');
+
+    // Fetch materials from backend and populate dropdown
+    async function loadMaterials() {
+      try {
+        const res = await fetch('/api/summaries');
+        if (!res.ok) throw new Error('Failed to load materials');
+        const materials = await res.json();
+
+        // Clear old options except placeholder
+        materialSelect.innerHTML = '<option value="">-- Select material --</option>';
+
+        materials.forEach(m => {
+          const option = document.createElement('option');
+          option.value = m.id;
+          option.textContent = m.title || m.filename || 'Untitled material';
+          materialSelect.appendChild(option);
+        });
+      } catch (err) {
+        answerDiv.textContent = 'Error loading materials.';
+        console.error(err);
+      }
+    }
+
+    // Enable button only if dropdown and question have values
+    function updateAskButton() {
+      askBtn.disabled = !materialSelect.value || !questionInput.value.trim();
+    }
+
+    // Make API call and show answer
+    async function askQuestion() {
+      const question = questionInput.value.trim();
+      const material_id = materialSelect.value;
+
+      if (!question || !material_id) return;
+
+      answerDiv.textContent = 'Loading...';
+      askBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/question', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ question, material_id }),
+        });
+
+        if (!res.ok) throw new Error('API error');
+
+        const data = await res.json();
+        answerDiv.textContent = data.answer || 'No answer found.';
+      } catch (error) {
+        answerDiv.textContent = 'Error fetching answer.';
+        console.error(error);
+      } finally {
+        askBtn.disabled = false;
+      }
+    }
+
+    // Event listeners
+    materialSelect.addEventListener('change', updateAskButton);
+    questionInput.addEventListener('input', updateAskButton);
+    askBtn.addEventListener('click', askQuestion);
+
+    // Load materials on page load
+    loadMaterials();
+
+    // Initialize button state
+    updateAskButton();
+  </script>
+
+</body>
+</html>
