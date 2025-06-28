@@ -4,11 +4,12 @@ services:
     env: docker
     plan: free
     region: singapore
-    dockerfilePath: ./Dockerfile
+    rootDir: backend
+    dockerfilePath: backend/Dockerfile
     envVars:
       - key: APP_ENV
         value: production
       - key: APP_KEY
         generateValue: true
       - key: OPENAI_API_KEY
-        sync: false  # Add your key manually
+        sync: false
