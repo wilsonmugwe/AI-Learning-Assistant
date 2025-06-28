@@ -1,4 +1,4 @@
 *.vue linguist-detectable=true
 *.js linguist-detectable=true
-*.php linguist-detectable=false
+*.php linguist-detectable=true
 *.blade.php linguist-detectable=false
