@@ -4,12 +4,12 @@ services:
     env: docker
     plan: free
     region: singapore
-    rootDir: backend                 # This tells Render to treat /backend as the working dir
-    dockerfilePath: Dockerfile      # Dockerfile is inside /backend
+    dockerfilePath: backend/Dockerfile   # ← Fix here
+    rootDir: backend                     # ← Still needed
     envVars:
       - key: APP_ENV
         value: production
       - key: APP_KEY
         generateValue: true
       - key: OPENAI_API_KEY
-        sync: false  # Add manually in Render Dashboard
+        sync: false
