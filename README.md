@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AI Learning Assistant
 
 AI Learning Assistant is a web-based education tool built using Laravel 11 (backend) and Vue 3 (frontend). It allows teachers to upload learning materials in PDF or plain-text format. The system then uses OpenAI to automatically generate a structured summary, which students can later read and interact with. Students can also ask follow-up questions, and the AI responds based on the uploaded content. The app separates frontend and backend for clarity, modularity, and maintainability.
@@ -70,3 +71,6 @@ Teachers begin by uploading course materials through the web interface. Once upl
 AUTHOR
 Wilson Mugwe Gathii
 Bachelor of Computer Science, Edith Cowan University
+=======
+# AI-learning-assistant
+>>>>>>> e6f4c758fcc81e748d9586f18c87db9f295b02a8
