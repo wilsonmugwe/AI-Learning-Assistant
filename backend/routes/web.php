@@ -10,21 +10,35 @@ use Illuminate\Support\Facades\Artisan;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-| This file defines routes that respond to web requests.
-| These routes are loaded by the RouteServiceProvider and all of them
-| will be assigned to the "web" middleware group.
+| These routes respond to web (non-API) requests and are loaded via the
+| RouteServiceProvider. All use the "web" middleware group.
 */
 
-// Route to test if the .env key is being read correctly
-Route::get('/test-env', function () {
+// Health check route
+Route::get('/', function () {
+    return response()->json(['status' => 'OK']);
+});
+
+// Manual cache clearing for production
+Route::get('/clear-cache', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('config:cache');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+    return response()->json(['status' => 'Cache cleared']);
+});
+
+// Check if .env is loading the OpenAI key correctly
+Route::get('/debug/env', function () {
     return response()->json([
-        'openai_key' => env('OPENAI_API_KEY') // Pulls OpenAI key from .env
+        'OPENAI_API_KEY' => env('OPENAI_API_KEY')
     ]);
 });
 
-// Route to test making an actual request to OpenAI API
-Route::get('/test-openai', function () {
-    $apiKey = env('OPENAI_API_KEY'); // Load OpenAI API key from .env
+// Test an actual OpenAI API call
+Route::get('/debug/openai', function () {
+    $apiKey = env('OPENAI_API_KEY');
 
     if (empty($apiKey)) {
         return response()->json(['error' => 'API key missing']);
@@ -43,7 +57,7 @@ Route::get('/test-openai', function () {
 
     if ($response->successful()) {
         return response()->json([
-            'result' => $response->json('choices.0.message.content')
+            'openai_response' => $response->json('choices.0.message.content')
         ]);
     } else {
         Log::error('OpenAI API error', [
@@ -51,26 +65,15 @@ Route::get('/test-openai', function () {
             'body' => $response->body()
         ]);
         return response()->json([
-            'error' => 'OpenAI API error',
-            'status' => $response->status()
+            'error' => 'OpenAI API failed',
+            'status' => $response->status(),
+            'body' => $response->body()
         ]);
     }
 });
 
-// Catch-all route to serve Vue frontend for all unknown routes
+// Catch-all: Must be last
 Route::get('/{any}', function () {
     $path = public_path('index.html');
     return File::exists($path) ? response()->file($path) : abort(404);
 })->where('any', '.*');
-
-
-Route::get('/', function () {
-    return response()->json(['status' => 'OK']);
-});
-
-Route::get('/clear-cache', function () {
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('config:cache');
-    return response()->json(['status' => 'Cache cleared']);
-});
