@@ -1,15 +1,16 @@
 <template>
   <div class="summary-page">
-    <!-- Button to go back to the homepage -->
+    <!-- Back button -->
     <button class="back-btn" @click="$router.push('/')">Back to Home</button>
 
     <h1>Summary</h1>
 
-    <!-- While data is being fetched, show loading message -->
+    <!-- Loading state -->
     <div v-if="loading" class="loading-message">Loading summary...</div>
 
+    <!-- Loaded state -->
     <div v-else>
-      <!-- Short summary: bullet points (if available) -->
+      <!-- Bullet summary -->
       <div v-if="shortSummary.length > 0" class="summary-section">
         <h2>Short Summary (Bullet Points)</h2>
         <ul class="bullet-list">
@@ -17,16 +18,16 @@
         </ul>
       </div>
 
-      <!-- If no short summary, show fallback message -->
+      <!-- No short summary -->
       <div v-else class="error-message">No short summary available.</div>
 
-      <!-- Long summary: full paragraph version (if available) -->
+      <!-- Long paragraph summary -->
       <div v-if="longSummary" class="full-summary-section">
         <h2>Full Summary</h2>
         <p class="full-summary-text">{{ longSummary }}</p>
       </div>
 
-      <!-- If no long summary, show fallback message -->
+      <!-- No long summary -->
       <div v-else class="error-message">No full summary available.</div>
     </div>
   </div>
@@ -37,38 +38,36 @@ export default {
   name: "SummaryView",
   data() {
     return {
-      loading: true,        // Show loading state until fetch is complete
+      loading: true,        // Loading spinner flag
       longSummary: "",      // Full paragraph summary
-      shortSummary: [],     // Bullet point summary
+      shortSummary: [],     // Array of bullet points
     };
   },
   async created() {
-    // Grab the ID from the route params
     const id = this.$route.params.id;
+
     try {
-      // Fetch summary data from backend
-      const res = await fetch(`http://localhost:8000/api/summaries/${id}`);
+      // Use VITE_API_URL from .env instead of hardcoded localhost
+      const baseUrl = import.meta.env.VITE_API_URL;
+      const res = await fetch(`${baseUrl}/summaries/${id}`);
       const data = await res.json();
 
       console.log("Fetched summary data:", data);
 
-      // Assign long summary text (fallback to empty string)
+      // Assign full paragraph summary
       this.longSummary = data.long_summary || "";
 
-      // Clean and assign short summary if it's a valid array
+      // Parse and clean bullet points
       if (Array.isArray(data.short_summary) && data.short_summary.length > 0) {
-        this.shortSummary = data.short_summary
-          .map(line => line.trim())
-          .filter(Boolean); // remove empty lines
+        this.shortSummary = data.short_summary.map(point => point.trim()).filter(Boolean);
       } else {
         this.shortSummary = [];
       }
-
     } catch (err) {
-      // Handle error (already logged)
-      console.error("Failed to load summary:", err);
+      console.error("Failed to fetch summary:", err);
+      this.shortSummary = [];
+      this.longSummary = "";
     } finally {
-      // Stop showing loading state no matter what
       this.loading = false;
     }
   },
@@ -81,10 +80,10 @@ export default {
   color: white;
   min-height: 100vh;
   padding: 2rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .back-btn {
@@ -108,10 +107,8 @@ h1 {
   font-size: 2.2rem;
   color: #a366ff;
   margin-bottom: 2rem;
-  text-align: center;
 }
 
-/* Box around bullet summary */
 .summary-section {
   width: 100%;
   max-width: 1200px;
@@ -123,12 +120,11 @@ h1 {
 }
 
 h2 {
-  margin-bottom: 1rem;
   color: #caa6ff;
+  margin-bottom: 1rem;
   font-size: 1.4rem;
 }
 
-/* Bullet list formatting */
 .bullet-list {
   list-style-type: disc;
   padding-left: 1.5rem;
@@ -139,7 +135,6 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
-/* Full paragraph summary section */
 .full-summary-section {
   width: 100%;
   max-width: 1200px;
@@ -155,20 +150,14 @@ h2 {
 .full-summary-text {
   line-height: 1.6;
   color: #e0d2ff;
-  padding: 0;
-  background: none;
-  border: none;
-  margin: 0;
 }
 
-/* While loading content */
 .loading-message {
   font-size: 1.2rem;
   color: #ccc;
   margin-top: 2rem;
 }
 
-/* For fallback or API failure messages */
 .error-message {
   color: red;
   font-size: 1.2rem;
