@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -63,3 +65,10 @@ Route::get('/test-openai', function () {
         ]);
     }
 });
+
+
+// Catch-all route to serve the Vue app for all frontend routes
+Route::get('/{any}', function () {
+    $path = public_path('index.html');
+    return File::exists($path) ? response()->file($path) : abort(404);
+})->where('any', '.*');
