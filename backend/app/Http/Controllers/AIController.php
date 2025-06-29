@@ -124,7 +124,8 @@ class AIController extends Controller
      */
     private function callOpenAI(string $text): array
     {
-        $apiKey = env('OPENAI_API_KEY');
+        $apiKey = config('services.openai.key');
+
 
         // Check if API key is configured
         if (empty($apiKey)) {
