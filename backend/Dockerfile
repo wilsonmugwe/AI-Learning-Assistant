@@ -4,9 +4,9 @@ FROM php:8.2-fpm
 # 2. Working directory
 WORKDIR /var/www
 
-# 3. Install dependencies
+# 3. Install dependencies (added libpq-dev)
 RUN apt-get update && apt-get install -y \
-    git unzip curl libpng-dev libonig-dev libxml2-dev zip \
+    git unzip curl libpng-dev libonig-dev libxml2-dev libpq-dev zip \
     && docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
 
 # 4. Install Composer
