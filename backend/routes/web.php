@@ -61,3 +61,8 @@ Route::get('/{any}', function () {
     $path = public_path('index.html');
     return File::exists($path) ? response()->file($path) : abort(404);
 })->where('any', '.*');
+
+
+Route::get('/', function () {
+    return response()->json(['status' => 'OK']);
+});

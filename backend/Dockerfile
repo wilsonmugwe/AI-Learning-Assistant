@@ -34,4 +34,5 @@ RUN cp .env.example .env && php artisan key:generate
 # 9. Expose port and launch server
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8080"]
