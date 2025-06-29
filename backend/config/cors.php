@@ -13,14 +13,18 @@ return [
         'sanctum/csrf-cookie',
     ],
 
-    'allowed_methods' => ['*'],
-
+   
+   
     'allowed_origins_patterns' => [
-    '^https://.*\.onrender\.com$',
-    '^https://.*\.netlify\.app$',
-],
+        '^https://.*\.netlify\.app$',         // allow Netlify
+        '^https://.*\.onrender\.com$',        // allow Render internal use
+    ],
 
-    
+     'allowed_methods' => ['*'],
+
+
+
+
 
     'allowed_headers' => ['*'],
 
