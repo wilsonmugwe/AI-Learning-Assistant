@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Artisan;
 | RouteServiceProvider. All use the "web" middleware group.
 */
 
-// Health check route
-Route::get('/', function () {
-    return response()->json(['status' => 'OK']);
-});
+// Remove this to allow index.html to load
+// Route::get('/', function () {
+//     return response()->json(['status' => 'OK']);
+// });
 
 // Manual cache clearing for production
 Route::get('/clear-cache', function () {
