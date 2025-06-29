@@ -2,7 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Import the components that map to routes
-import Welcome from './components/Welcome.vue';         // Landing page
+import Welcome from './components/welcome.vue';         // Landing page
 import AskQuestion from './components/AskQuestion.vue'; // Question input and response view
 import Upload from './components/Upload.vue';           // File/text upload screen
 import SummaryView from './components/SummaryView.vue'; // View generated summary by ID
