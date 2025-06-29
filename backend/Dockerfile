@@ -1,27 +1,37 @@
-# Use official PHP image with necessary extensions
+# 1. Use base PHP image
 FROM php:8.2-fpm
 
-# Set working directory inside container
+# 2. Set working directory
 WORKDIR /var/www
 
-# Copy Laravel backend files into container
-COPY . /var/www
+# 3. Install required system packages
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Install Composer
+# 4. Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set permissions
+# 5. Copy Laravel files
+COPY . .
+
+# 6. Set permissions
 RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www
+    && chmod -R 755 /var/www/storage
 
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev
+# 7. Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader
 
-# Generate Laravel app key
-RUN php artisan key:generate
+# 8. Generate Laravel key
+RUN cp .env.example .env && php artisan key:generate
 
-# Expose port (if using Laravel's PHP dev server for simplicity)
+# 9. Expose port and launch server
 EXPOSE 8000
 
-# Start Laravel using built-in PHP server
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
