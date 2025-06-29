@@ -8,7 +8,7 @@ return [
 
     'allowed_origins' => [
         'https://ai-learning-assistant-ag67.onrender.com',
-        'https://<your-frontend>.netlify.app',
+       
     ],
 
     'allowed_origins_patterns' => [],
