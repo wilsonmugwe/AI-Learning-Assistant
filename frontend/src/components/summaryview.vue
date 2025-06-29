@@ -1,16 +1,16 @@
 <template>
   <div class="summary-page">
-    <!-- Back button -->
+    <!-- Back to homepage -->
     <button class="back-btn" @click="$router.push('/')">Back to Home</button>
 
     <h1>Summary</h1>
 
-    <!-- Loading state -->
+    <!-- Show loading state while data is being fetched -->
     <div v-if="loading" class="loading-message">Loading summary...</div>
 
-    <!-- Loaded state -->
+    <!-- Content once loading is done -->
     <div v-else>
-      <!-- Bullet summary -->
+      <!-- If bullet points are available, show them -->
       <div v-if="shortSummary.length > 0" class="summary-section">
         <h2>Short Summary (Bullet Points)</h2>
         <ul class="bullet-list">
@@ -18,16 +18,16 @@
         </ul>
       </div>
 
-      <!-- No short summary -->
+      <!-- No short summary to show -->
       <div v-else class="error-message">No short summary available.</div>
 
-      <!-- Long paragraph summary -->
+      <!-- Full paragraph summary -->
       <div v-if="longSummary" class="full-summary-section">
         <h2>Full Summary</h2>
         <p class="full-summary-text">{{ longSummary }}</p>
       </div>
 
-      <!-- No long summary -->
+      <!-- No full summary -->
       <div v-else class="error-message">No full summary available.</div>
     </div>
   </div>
@@ -38,36 +38,42 @@ export default {
   name: "SummaryView",
   data() {
     return {
-      loading: true,        // Loading spinner flag
-      longSummary: "",      // Full paragraph summary
-      shortSummary: [],     // Array of bullet points
+      loading: true, // flag for loading state
+      longSummary: "", // this will hold the full paragraph summary
+      shortSummary: [], // array to hold bullet points
     };
   },
   async created() {
+    // grab the material ID from the route
     const id = this.$route.params.id;
 
     try {
-      // Use VITE_API_URL from .env instead of hardcoded localhost
+      // fetch from our Laravel backend using the base API URL
       const baseUrl = import.meta.env.VITE_API_URL;
       const res = await fetch(`${baseUrl}/summaries/${id}`);
       const data = await res.json();
 
-      console.log("Fetched summary data:", data);
+      console.log("Fetched summary data:", data); // helpful for debugging
 
-      // Assign full paragraph summary
-      this.longSummary = data.long_summary || "";
+      // get the paragraph summary
+      this.longSummary = data.summary || data.long_summary || "";
 
-      // Parse and clean bullet points
-      if (Array.isArray(data.short_summary) && data.short_summary.length > 0) {
-        this.shortSummary = data.short_summary.map(point => point.trim()).filter(Boolean);
+      // handle the bullet summary string
+      if (typeof data.bullet_summary === "string" && data.bullet_summary.trim().length > 0) {
+        this.shortSummary = data.bullet_summary
+          .split("\n") // break into lines
+          .map(point => point.replace(/^[-•*]\s*/, "").trim()) // remove bullet markers and trim
+          .filter(Boolean); // remove any empty strings
       } else {
         this.shortSummary = [];
       }
     } catch (err) {
+      // handle any errors (network or server)
       console.error("Failed to fetch summary:", err);
       this.shortSummary = [];
       this.longSummary = "";
     } finally {
+      // no matter what, turn off loading state
       this.loading = false;
     }
   },
