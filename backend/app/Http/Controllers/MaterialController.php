@@ -11,50 +11,53 @@ class MaterialController extends Controller
     /**
      * GET /api/summaries
      * Fetches a list of all materials ordered by most recent.
-     * Returns a trimmed-down dataset: only id, filename, title, summary, and created_at.
-     * Used to display a list of uploaded materials to the frontend.
+     * Returns trimmed data: id, filename, title, summary, and created_at.
      */
     public function index(): JsonResponse
     {
-        // Get latest materials from DB with selected fields
         $materials = Material::latest()->get([
-            'id',         // unique identifier for routing
-            'filename',   // original or generated filename
-            'title',      // optional title field
-            'summary',    // paragraph-style summary from OpenAI
-            'created_at'  // timestamp for sorting/display
+            'id',
+            'filename',
+            'title',
+            'summary',
+            'created_at'
         ]);
 
-        // Return the list as a JSON response
         return response()->json($materials);
     }
 
     /**
      * GET /api/summaries/{id}
-     * Fetches a single material by ID and returns its full and bullet summaries.
-     * Used by the summary viewer or Q&A screen to load a specific material.
+     * Returns one material with paragraph summary and newline-encoded bullet summary.
      */
     public function show($id): JsonResponse
     {
-        // Attempt to find the material by ID
-        // Will throw 404 if not found
         $material = Material::findOrFail($id);
 
-        // bullet_summary is expected to be cast as array in the Material model
-        $shortSummary = $material->bullet_summary ?? [];
+        $paragraph = $material->summary ?? "";
 
-        // Log a warning if short summary is empty or missing
-        if (empty($shortSummary)) {
-            Log::warning("No short summary parsed for material ID {$id}", [
-                'raw' => $material->bullet_summary,   // raw DB value
-                'summary' => $material->summary       // paragraph summary (always returned)
+        // Normalize bullet summary
+        $bulletData = $material->bullet_summary ?? [];
+
+        // Convert array to string with line breaks
+        $bulletString = is_array($bulletData)
+            ? implode("\n", array_filter($bulletData))
+            : (string) $bulletData;
+
+        // Escape real newlines for frontend parsing
+        $escapedBulletString = str_replace("\n", "\\n", $bulletString);
+
+        // Optional: log if bullet summary is empty
+        if (empty($escapedBulletString)) {
+            Log::warning("Empty bullet summary for material ID {$id}", [
+                'raw_bullet_summary' => $material->bullet_summary,
+                'paragraph_summary' => $paragraph,
             ]);
         }
 
-        // Return both the long (paragraph) and short (bullet) summaries
         return response()->json([
-            'long_summary' => $material->summary,
-            'short_summary' => $shortSummary,
+            'summary' => trim($paragraph),
+            'bullet_summary' => $escapedBulletString,
         ]);
     }
 }
