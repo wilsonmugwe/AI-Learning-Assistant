@@ -31,9 +31,14 @@ Route::get('/clear-cache', function () {
 
 // Check if .env is loading the OpenAI key correctly
 Route::get('/debug/env', function () {
-    return response()->json([
-        'OPENAI_API_KEY' => env('OPENAI_API_KEY')
-    ]);
+    try {
+        $key = env('OPENAI_API_KEY');
+        return response()->json([
+            'OPENAI_API_KEY' => $key ? '[KEY PRESENT]' : null
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
 });
 
 // Test an actual OpenAI API call
