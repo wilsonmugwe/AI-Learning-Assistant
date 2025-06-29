@@ -72,5 +72,5 @@ Route::get('/clear-cache', function () {
     Artisan::call('config:clear');
     Artisan::call('cache:clear');
     Artisan::call('config:cache');
-    return 'Laravel config and cache cleared';
+    return response()->json(['status' => 'Cache cleared']);
 });
