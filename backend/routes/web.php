@@ -56,7 +56,7 @@ Route::get('/test-openai', function () {
     }
 });
 
-// Catch-all route to serve the Vue app for all frontend routes
+// Catch-all route to serve Vue frontend for all unknown routes
 Route::get('/{any}', function () {
     $path = public_path('index.html');
     return File::exists($path) ? response()->file($path) : abort(404);
