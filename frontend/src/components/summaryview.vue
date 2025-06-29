@@ -34,9 +34,9 @@ export default {
   name: "SummaryView",
   data() {
     return {
-      loading: true,          // Loading spinner control
-      longSummary: "",        // Full paragraph-style summary
-      shortSummary: []        // Bullet points as array
+      loading: true,           // Indicates loading state
+      longSummary: "",         // Full paragraph-style summary
+      shortSummary: []         // Parsed bullet point array
     };
   },
   async created() {
@@ -48,28 +48,27 @@ export default {
       const response = await fetch(`${baseUrl}/summaries/${id}`);
       const result = await response.json();
 
-      console.log("[DEBUG] API Raw Response:", result);
+      console.log("[DEBUG] Raw response from API:", result);
 
-      // In case API wraps data in `data` object
-      const summaryData = result.data || result;
+      // Directly use long_summary string (if present)
+      this.longSummary = (result.long_summary || "").trim();
 
-      // Handle full summary
-      this.longSummary = (summaryData.summary || summaryData.long_summary || "").trim();
-      console.log("[DEBUG] Long Summary:", this.longSummary);
+      // Handle bullet-style summary as a raw string
+      let rawBullets = result.short_summary || "";
 
-      // Handle bullet summary (convert literal \n to real newlines)
-      let rawBullets = summaryData.bullet_summary || summaryData.short_summary || "";
-      rawBullets = rawBullets.replace(/\\n/g, '\n');  // Convert escaped newlines
+      // If bullet string uses literal '\n', convert to real line breaks
+      rawBullets = rawBullets.replace(/\\n/g, '\n');
 
+      // Convert the raw bullet string to an array of cleaned lines
       this.shortSummary = rawBullets
-        .split(/\r?\n/)
-        .map(line => line.replace(/^[-•*]\s*/, "").trim()) // Remove leading bullet chars
-        .filter(Boolean);
+        .split(/\r?\n/) // split on newlines
+        .map(line => line.replace(/^[-•*]\s*/, "").trim()) // remove bullets like - or •
+        .filter(Boolean); // remove empty lines
 
-      console.log("[DEBUG] Bullet Summary (array):", this.shortSummary);
+      console.log("[DEBUG] Final bullet summary:", this.shortSummary);
 
     } catch (error) {
-      console.error("[ERROR] Failed to fetch or process summary:", error);
+      console.error("[ERROR] Failed to load summary:", error);
       this.longSummary = "";
       this.shortSummary = [];
     } finally {
@@ -78,90 +77,3 @@ export default {
   }
 };
 </script>
-
-<style scoped>
-.summary-page {
-  background-color: #0b0020;
-  color: white;
-  min-height: 100vh;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.back-btn {
-  position: absolute;
-  top: 1.5rem;
-  left: 2rem;
-  background-color: #5d3dbd;
-  color: white;
-  border: none;
-  padding: 0.5rem 1.2rem;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-.back-btn:hover {
-  background-color: #3b259c;
-}
-
-h1 {
-  font-size: 2.2rem;
-  color: #a366ff;
-  margin-bottom: 2rem;
-}
-
-.summary-section {
-  width: 100%;
-  max-width: 1200px;
-  background-color: #1a0033;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 0 10px rgba(163, 102, 255, 0.1);
-}
-
-h2 {
-  color: #caa6ff;
-  margin-bottom: 1rem;
-  font-size: 1.4rem;
-}
-
-.bullet-list {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  line-height: 1.6;
-  color: #f0e7ff;
-}
-
-.bullet-list li {
-  margin-bottom: 0.5rem;
-}
-
-.full-summary-section {
-  width: 100%;
-  max-width: 1200px;
-  margin-bottom: 2rem;
-}
-
-.full-summary-text {
-  line-height: 1.6;
-  color: #e0d2ff;
-}
-
-.loading-message {
-  font-size: 1.2rem;
-  color: #ccc;
-  margin-top: 2rem;
-}
-
-.error-message {
-  color: red;
-  font-size: 1.2rem;
-  margin-top: 2rem;
-  text-align: center;
-}
-</style>
