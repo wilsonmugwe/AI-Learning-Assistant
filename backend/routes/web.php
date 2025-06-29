@@ -77,8 +77,8 @@ Route::get('/debug/openai', function () {
     }
 });
 
-// Catch-all: Must be last
 Route::get('/{any}', function () {
     $path = public_path('index.html');
     return File::exists($path) ? response()->file($path) : abort(404);
-})->where('any', '.*');
+})->where('any', '^(?!api).*$');
+

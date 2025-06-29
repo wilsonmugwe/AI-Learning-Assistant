@@ -10,10 +10,8 @@ class Material extends Model
         'filename',
         'content',
         'summary',
-        'bullet_summary',  // bullet_summary 
+        'bullet_summary', // Now plain text, not array
     ];
 
-    protected $casts = [
-        'bullet_summary' => 'array',  // Cast bullet_summary as array
-    ];
+    // Removed $casts because bullet_summary is no longer treated as array
 }

@@ -16,6 +16,7 @@ return [
 
     // Allow specific frontend origins
     'allowed_origins' => [
+        'http://localhost:5173',
         'https://steady-gelato-f939f6.netlify.app',
     ],
 

@@ -20,7 +20,7 @@ class MaterialController extends Controller
             'filename',
             'title',
             'summary',
-            'created_at'
+            'created_at',
         ]);
 
         return response()->json($materials);
@@ -28,36 +28,33 @@ class MaterialController extends Controller
 
     /**
      * GET /api/summaries/{id}
-     * Returns one material with paragraph summary and newline-encoded bullet summary.
+     * Returns one material with full paragraph summary and bullet summary as an array,
+     * assuming bullet_summary is always stored as newline-delimited plain text.
      */
     public function show($id): JsonResponse
     {
         $material = Material::findOrFail($id);
 
-        $paragraph = $material->summary ?? "";
+        $summary = trim($material->summary ?? '');
 
-        // Normalize bullet summary
-        $bulletData = $material->bullet_summary ?? [];
-
-        // Convert array to string with line breaks
-        $bulletString = is_array($bulletData)
-            ? implode("\n", array_filter($bulletData))
-            : (string) $bulletData;
-
-        // Escape real newlines for frontend parsing
-        $escapedBulletString = str_replace("\n", "\\n", $bulletString);
-
-        // Optional: log if bullet summary is empty
-        if (empty($escapedBulletString)) {
-            Log::warning("Empty bullet summary for material ID {$id}", [
-                'raw_bullet_summary' => $material->bullet_summary,
-                'paragraph_summary' => $paragraph,
-            ]);
+        // Bullet summary is treated as newline-separated string only
+        $bulletSummary = [];
+        if (is_string($material->bullet_summary)) {
+            $bulletSummary = array_filter(
+                array_map('trim', preg_split('/[\r\n]+/', $material->bullet_summary))
+            );
         }
 
+        Log::info("Returning summary for material ID $id", [
+            'summary' => $summary,
+            'bullet_summary' => $bulletSummary,
+        ]);
+
         return response()->json([
-            'summary' => trim($paragraph),
-            'bullet_summary' => $escapedBulletString,
+            'data' => [
+                'summary' => $summary,
+                'bullet_summary' => $bulletSummary,
+            ]
         ]);
     }
 }

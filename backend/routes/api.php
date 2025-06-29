@@ -13,8 +13,12 @@ Route::post('/upload', [UploadController::class, 'upload']);
 // Get all summaries (list)
 Route::get('/summaries', [MaterialController::class, 'index']);
 
+
+
 // Get a specific summary by ID (long + bullet)
+
 Route::get('/summaries/{id}', [MaterialController::class, 'show']);
+
 
 // Ask a question based on a material
 Route::post('/question', [QuestionController::class, 'ask']);
@@ -27,3 +31,8 @@ Route::post('/ai/upload-and-summarize', [AIController::class, 'uploadAndSummariz
 
 // Manually trigger bullet point parsing (for testing/debugging)
 Route::post('/ai/parse-bullet-summary/{id}', [AIController::class, 'parseBulletSummary']);
+
+
+
+
+
