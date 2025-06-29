@@ -1,31 +1,29 @@
 <template>
   <div class="summary-page">
-    <!-- Navigation back to home -->
+    <!-- Navigation -->
     <button class="back-btn" @click="$router.push('/')">Back to Home</button>
 
     <h1>Summary</h1>
 
-    <!-- Loading state -->
+    <!-- Show while loading -->
     <div v-if="loading" class="loading-message">Loading summary...</div>
 
-    <!-- Display content once loaded -->
+    <!-- Show summaries when loaded -->
     <div v-else>
-      <!-- Bullet point summary -->
+      <!-- Bullet Summary -->
       <div v-if="shortSummary.length > 0" class="summary-section">
         <h2>Short Summary (Bullet Points)</h2>
         <ul class="bullet-list">
           <li v-for="(point, index) in shortSummary" :key="index">{{ point }}</li>
         </ul>
       </div>
-      <!-- Message if no bullet summary available -->
       <div v-else class="error-message">No short summary available.</div>
 
-      <!-- Full paragraph summary -->
+      <!-- Paragraph Summary -->
       <div v-if="longSummary" class="full-summary-section">
         <h2>Full Summary</h2>
         <p class="full-summary-text">{{ longSummary }}</p>
       </div>
-      <!-- Message if no full summary available -->
       <div v-else class="error-message">No full summary available.</div>
     </div>
   </div>
@@ -36,50 +34,45 @@ export default {
   name: "SummaryView",
   data() {
     return {
-      loading: true,         // Controls whether loading message is shown
-      longSummary: "",       // Stores the paragraph-style summary
-      shortSummary: []       // Stores bullet points as an array of strings
+      loading: true,          // Loading spinner control
+      longSummary: "",        // Full paragraph-style summary
+      shortSummary: []        // Bullet points as array
     };
   },
   async created() {
-    // Get material ID from the route parameter
     const id = this.$route.params.id;
     console.log("[DEBUG] Material ID:", id);
 
     try {
-      // Base URL from environment file
       const baseUrl = import.meta.env.VITE_API_URL;
-
-      // Make request to fetch summary data
       const response = await fetch(`${baseUrl}/summaries/${id}`);
       const result = await response.json();
 
-      console.log("[DEBUG] Raw API response:", result);
+      console.log("[DEBUG] API Raw Response:", result);
 
-      // If backend wraps the data in a 'data' object, extract it
+      // In case API wraps data in `data` object
       const summaryData = result.data || result;
 
-      // Extract and clean the full summary
+      // Handle full summary
       this.longSummary = (summaryData.summary || summaryData.long_summary || "").trim();
+      console.log("[DEBUG] Long Summary:", this.longSummary);
 
-      // Extract bullet-style summary string
+      // Handle bullet summary (convert literal \n to real newlines)
       let rawBullets = summaryData.bullet_summary || summaryData.short_summary || "";
+      rawBullets = rawBullets.replace(/\\n/g, '\n');  // Convert escaped newlines
 
-      // Convert escaped newline characters to real line breaks
-      rawBullets = rawBullets.replace(/\\n/g, "\n");
-
-      // Convert string to array, clean each line
       this.shortSummary = rawBullets
-        .split(/\r?\n/)                                // Split on newlines
-        .map(line => line.replace(/^[-•*]\s*/, "").trim()) // Remove bullet marks
-        .filter(Boolean);                              // Remove empty lines
+        .split(/\r?\n/)
+        .map(line => line.replace(/^[-•*]\s*/, "").trim()) // Remove leading bullet chars
+        .filter(Boolean);
+
+      console.log("[DEBUG] Bullet Summary (array):", this.shortSummary);
+
     } catch (error) {
-      // Log any fetch or parsing errors
-      console.error("[ERROR] Failed to load summary:", error);
+      console.error("[ERROR] Failed to fetch or process summary:", error);
       this.longSummary = "";
       this.shortSummary = [];
     } finally {
-      // Stop showing loading message
       this.loading = false;
     }
   }
