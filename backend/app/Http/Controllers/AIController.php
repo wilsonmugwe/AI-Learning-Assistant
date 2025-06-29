@@ -18,45 +18,57 @@ class AIController extends Controller
     {
         Log::info('AIController: uploadAndSummarize called');
 
-        // Validate input: only allow txt or pdf files, max size 5MB
+        // Validate input: allow only txt or pdf files, max size 5MB
         $request->validate([
             'file' => 'required|mimes:txt,pdf|max:5120',
         ]);
 
-        // Save uploaded file to storage with a unique filename
+        // Store the uploaded file with a unique filename
         $file = $request->file('file');
         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $file->storeAs('public/materials', $filename);
 
-        // Extract the raw text content from the file
+        // Extract and clean file text content
         $text = $this->extractText($file);
-        $text = preg_replace('/\s+/', ' ', $text); // Collapse multiple whitespaces
+        $text = preg_replace('/\s+/', ' ', $text);
         $text = trim($text);
-        $text = substr($text, 0, 4000); // Limit text to avoid exceeding OpenAI token limits
+        $text = substr($text, 0, 4000); // Limit text to avoid exceeding token limits
 
         Log::info('Extracted text length: ' . strlen($text));
 
-        // If the content is too short, skip calling OpenAI
+        // If text is too short, skip summarization
         if (strlen($text) < 30) {
             $summary = 'Content too short for meaningful summary.';
             $bulletPoints = [];
             Log::info('Skipped OpenAI call due to short content');
         } else {
-            // Try to get summary from OpenAI (with retry logic)
+            // Attempt OpenAI summarization with retries
             [$summary, $bulletPoints] = $this->callOpenAIWithRetry($text, 2);
         }
 
-        // Save the new material entry to the database
+        // If summarization failed, return an error and don't save
+        if (Str::startsWith($summary, 'Summary failed')) {
+            Log::warning('Skipping save: OpenAI failed.');
+            return response()->json([
+                'error' => 'Summarization failed. Please try again later.',
+            ], 500);
+        }
+
+        // Log final summary and bullets
+        Log::info('Final summary to save:', ['summary' => $summary]);
+        Log::info('Final bullets to save:', ['bullets' => $bulletPoints]);
+
+        // Save material to database
         $material = Material::create([
             'filename' => $filename,
             'content' => $text,
             'summary' => $summary,
-            'bullet_summary' => $bulletPoints ?: null, // save bullet points if any
+            'bullet_summary' => $bulletPoints ?: null,
         ]);
 
         Log::info('Material created with ID: ' . $material->id);
 
-        // Return the summary data as JSON response
+        // Return summary and ID to frontend
         return response()->json([
             'material_id' => $material->id,
             'filename' => $filename,
@@ -66,20 +78,17 @@ class AIController extends Controller
     }
 
     /**
-     * Extracts the text content from a .txt or .pdf file.
+     * Extracts raw text from .txt or .pdf file.
      */
     private function extractText($file): string
     {
-        Log::info('Extracting text from file');
-
         $extension = $file->getClientOriginalExtension();
+        Log::info('Extracting text from file type: ' . $extension);
 
-        // For .txt files, just read the contents
         if ($extension === 'txt') {
             return file_get_contents($file->getRealPath());
         }
 
-        // For .pdf files, use Smalot PDF Parser
         if ($extension === 'pdf') {
             try {
                 $parser = new Parser();
@@ -91,12 +100,11 @@ class AIController extends Controller
             }
         }
 
-        // Unsupported file type fallback
         return '[Unsupported file type]';
     }
 
     /**
-     * Tries to call OpenAI up to $maxAttempts times if previous attempts fail.
+     * Retry OpenAI call up to $maxAttempts if it fails.
      */
     private function callOpenAIWithRetry(string $text, int $maxAttempts): array
     {
@@ -107,33 +115,29 @@ class AIController extends Controller
 
             [$summary, $bulletPoints] = $this->callOpenAI($text);
 
-            // Only return result if it didn't fail
             if (strpos($summary, 'Summary failed') === false) {
                 return [$summary, $bulletPoints];
             }
 
-            Log::warning("OpenAI call attempt $attempt failed, retrying...");
+            Log::warning("OpenAI call attempt $attempt failed.");
         } while ($attempt < $maxAttempts);
 
-        // Return last result even if it failed
         return [$summary, $bulletPoints];
     }
 
     /**
-     * Calls OpenAI's Chat API to get both full paragraph summary and bullet points.
+     * Calls OpenAI API to get summary and bullets.
      */
     private function callOpenAI(string $text): array
     {
         $apiKey = config('services.openai.key');
 
-
-        // Check if API key is configured
         if (empty($apiKey)) {
             Log::error('OpenAI API key is missing.');
             return ['Summary failed: API key missing.', null];
         }
 
-        // Prompt tells the AI exactly how to format the response
+        // Craft prompt with clear structure
         $prompt = "Please summarize the following content in two parts:\n\n" .
                   "1. A detailed and informative paragraph summary that covers key points thoroughly.\n" .
                   "2. Exactly 3 to 5 bullet points, each starting with a dash (-) and on a new line.\n\n" .
@@ -145,7 +149,6 @@ class AIController extends Controller
                   "Now summarize the content below:\n$text";
 
         try {
-            // Send the request to OpenAI's API
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
@@ -155,10 +158,9 @@ class AIController extends Controller
                     ['role' => 'system', 'content' => 'You are an AI summarizer.'],
                     ['role' => 'user', 'content' => $prompt],
                 ],
-                'max_tokens' => 1000, // Limit to prevent overflows
+                'max_tokens' => 1000,
             ]);
 
-            // Handle failure case
             if (!$response->successful()) {
                 Log::error('OpenAI request failed', [
                     'status' => $response->status(),
@@ -167,17 +169,14 @@ class AIController extends Controller
                 return ['Summary failed: API returned error.', null];
             }
 
-            // Extract content from response
             $content = trim($response->json('choices.0.message.content'));
             Log::info('OpenAI raw response content:', ['content' => $content]);
 
-            // Handle empty response
             if (!$content) {
                 Log::warning('OpenAI returned empty content.');
                 return ['Summary failed: Empty result.', null];
             }
 
-            // Parse the combined summary (paragraph + bullets)
             return $this->parseBulletSummary($content);
 
         } catch (\Exception $e) {
@@ -187,7 +186,7 @@ class AIController extends Controller
     }
 
     /**
-     * Splits the full OpenAI response into a paragraph and array of bullet points.
+     * Parses OpenAI response into a paragraph and bullet points.
      */
     private function parseBulletSummary(string $content): array
     {
@@ -195,22 +194,18 @@ class AIController extends Controller
             return [null, null];
         }
 
-        // Clean and normalize the input
         $content = trim($content);
 
-        // Split into two parts: full summary and bullet block
+        // Try to split into paragraph and bullet block
         $parts = preg_split("/\n\s*\n/", $content, 2);
         $fullSummary = $parts[0] ?? null;
         $bulletBlock = $parts[1] ?? null;
 
         $bullets = [];
 
-        // If bullets exist, split into lines and clean them
         if ($bulletBlock) {
             $rawBullets = array_filter(array_map('trim', explode("\n", $bulletBlock)));
-
             foreach ($rawBullets as $line) {
-                // Remove dash or numbering prefix
                 $cleanLine = preg_replace('/^[-\d. ]+/', '', $line);
                 if ($cleanLine !== '') {
                     $bullets[] = $cleanLine;
@@ -218,13 +213,14 @@ class AIController extends Controller
             }
         }
 
-        Log::info('Parsed bullets:', ['bullets' => $bullets, 'raw_content' => $content]);
-
-        // If no bullets parsed, just return full summary
+        // If bullet parsing fails, return fallback
         if (empty($bullets)) {
             Log::warning('No short summary parsed.', ['raw' => $content, 'summary' => $fullSummary]);
-            return [$fullSummary ?? $content, null];
+            $fallbackBullets = explode("\n", $content);
+            return [$fullSummary ?? $content, $fallbackBullets];
         }
+
+        Log::info('Parsed bullets:', ['bullets' => $bullets, 'raw_content' => $content]);
 
         return [$fullSummary ?? $content, $bullets];
     }
