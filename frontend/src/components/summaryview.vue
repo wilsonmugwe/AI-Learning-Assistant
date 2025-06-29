@@ -1,24 +1,22 @@
 <template>
   <div class="summary-page">
-    <!-- Back to homepage -->
+    <!-- Navigation -->
     <button class="back-btn" @click="$router.push('/')">Back to Home</button>
 
     <h1>Summary</h1>
 
-    <!-- Show loading state while data is being fetched -->
+    <!-- Show while data is loading -->
     <div v-if="loading" class="loading-message">Loading summary...</div>
 
-    <!-- Content once loading is done -->
+    <!-- After loading completes -->
     <div v-else>
-      <!-- If bullet points are available, show them -->
+      <!-- Bullet summary section -->
       <div v-if="shortSummary.length > 0" class="summary-section">
         <h2>Short Summary (Bullet Points)</h2>
         <ul class="bullet-list">
           <li v-for="(point, index) in shortSummary" :key="index">{{ point }}</li>
         </ul>
       </div>
-
-      <!-- No short summary to show -->
       <div v-else class="error-message">No short summary available.</div>
 
       <!-- Full paragraph summary -->
@@ -26,8 +24,6 @@
         <h2>Full Summary</h2>
         <p class="full-summary-text">{{ longSummary }}</p>
       </div>
-
-      <!-- No full summary -->
       <div v-else class="error-message">No full summary available.</div>
     </div>
   </div>
@@ -38,42 +34,44 @@ export default {
   name: "SummaryView",
   data() {
     return {
-      loading: true, // flag for loading state
-      longSummary: "", // this will hold the full paragraph summary
-      shortSummary: [], // array to hold bullet points
+      loading: true,       // Show loading spinner
+      longSummary: "",     // Full paragraph-style summary
+      shortSummary: [],    // Bullet point summary
     };
   },
   async created() {
-    // grab the material ID from the route
+    // Get material ID from the URL route
     const id = this.$route.params.id;
 
     try {
-      // fetch from our Laravel backend using the base API URL
       const baseUrl = import.meta.env.VITE_API_URL;
       const res = await fetch(`${baseUrl}/summaries/${id}`);
       const data = await res.json();
 
-      console.log("Fetched summary data:", data); // helpful for debugging
+      console.log("[DEBUG] Summary API response:", data);
 
-      // get the paragraph summary
-      this.longSummary = data.summary || data.long_summary || "";
+      // Try both possible keys for the full summary
+      this.longSummary = (data.summary || data.long_summary || "").trim();
 
-      // handle the bullet summary string
-      if (typeof data.bullet_summary === "string" && data.bullet_summary.trim().length > 0) {
-        this.shortSummary = data.bullet_summary
-          .split("\n") // break into lines
-          .map(point => point.replace(/^[-•*]\s*/, "").trim()) // remove bullet markers and trim
-          .filter(Boolean); // remove any empty strings
+      // Handle bullet summary from either key
+      const rawBullets = data.bullet_summary || data.short_summary || "";
+
+      if (typeof rawBullets === "string" && rawBullets.trim().length > 0) {
+        // Split by either \n or actual newline, remove dash markers, trim
+        this.shortSummary = rawBullets
+          .split(/\\n|[\n\r]/) // Covers \n and real line breaks
+          .map(line => line.replace(/^[-•*]\s*/, "").trim()) // Strip bullets
+          .filter(Boolean); // Remove any empty strings
       } else {
         this.shortSummary = [];
       }
     } catch (err) {
-      // handle any errors (network or server)
-      console.error("Failed to fetch summary:", err);
+      // Log and reset if any issue occurs
+      console.error("[ERROR] Failed to fetch summary:", err);
       this.shortSummary = [];
       this.longSummary = "";
     } finally {
-      // no matter what, turn off loading state
+      // Always stop loading spinner
       this.loading = false;
     }
   },
@@ -145,12 +143,6 @@ h2 {
   width: 100%;
   max-width: 1200px;
   margin-bottom: 2rem;
-}
-
-.full-summary-section h2 {
-  color: #caa6ff;
-  font-size: 1.4rem;
-  margin-bottom: 0.5rem;
 }
 
 .full-summary-text {
