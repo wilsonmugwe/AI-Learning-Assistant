@@ -26,16 +26,18 @@ class UploadController extends Controller
         $file = $request->file('file');
         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
         $file->storeAs('public/materials', $filename);
+        Log::info('File uploaded and saved', ['filename' => $filename]);
 
         // Extract the file content as plain text
         $text = $this->extractText($file);
         $text = preg_replace('/\s+/', ' ', $text); // Clean up whitespace
         $text = trim($text);
         $text = substr($text, 0, 4000); // Limit length to avoid OpenAI token overflow
+        Log::info('Text extracted and preprocessed', ['length' => strlen($text)]);
 
         // Skip OpenAI call if content is too short
         if (strlen($text) < 30) {
-            Log::info('Skipped OpenAI summary: text too short.');
+            Log::info('Skipped OpenAI summary: text too short.', ['length' => strlen($text)]);
 
             // Save basic material entry with short message
             $material = Material::create([
@@ -55,12 +57,14 @@ class UploadController extends Controller
         }
 
         // Try summarizing once, then retry once if result looks invalid
+        Log::info('Sending text to OpenAI for summarization...');
         [$fullSummary, $bulletSummary] = $this->summarizeBoth($text);
+
         if (
             $fullSummary === 'Summary failed: Empty result.' ||
             $fullSummary === 'Summary failed: API returned error.'
         ) {
-            Log::warning('Retrying OpenAI summary once...');
+            Log::warning('Retrying OpenAI summary once after initial failure...');
             [$fullSummary, $bulletSummary] = $this->summarizeBoth($text);
         }
 
@@ -71,6 +75,8 @@ class UploadController extends Controller
             'summary' => $fullSummary,
             'bullet_summary' => $bulletSummary,
         ]);
+
+        Log::info('Summary stored successfully', ['material_id' => $material->id]);
 
         // Return summary data as JSON response
         return response()->json([
@@ -88,6 +94,7 @@ class UploadController extends Controller
     private function extractText($file): string
     {
         $extension = $file->getClientOriginalExtension();
+        Log::info('Extracting text from file', ['extension' => $extension]);
 
         // Handle plain text files
         if ($extension === 'txt') {
@@ -117,6 +124,7 @@ class UploadController extends Controller
     private function summarizeBoth(string $text): array
     {
         $apiKey = env('OPENAI_API_KEY');
+        Log::info('Initiating OpenAI summarization', ['api_key_present' => !empty($apiKey), 'text_length' => strlen($text)]);
 
         // Check for missing API key
         if (empty($apiKey)) {
@@ -155,7 +163,7 @@ class UploadController extends Controller
 
             // Extract and clean content
             $content = trim($response->json('choices.0.message.content'));
-            Log::info('OpenAI raw content:', ['content' => $content]);
+            Log::info('OpenAI response content received', ['length' => strlen($content)]);
 
             if (!$content) {
                 Log::warning('OpenAI returned empty content.');
@@ -181,12 +189,19 @@ class UploadController extends Controller
 
             // Clean and combine bullet lines
             $cleanBullets = implode("\n", array_map('trim', $bulletPoints));
+            Log::info('Bullet points parsed successfully', ['count' => count($bulletPoints)]);
 
             return [$full, $cleanBullets];
 
         } catch (\Exception $e) {
             // Catch any exceptions (network issues, server errors, etc.)
-            Log::error('Exception during OpenAI call', ['error' => $e->getMessage()]);
+            Log::error('Exception during OpenAI call', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'api_key_present' => !empty($apiKey),
+                'text_length' => strlen($text),
+            ]);
+
             return ['Summary failed: Exception thrown.', null];
         }
     }
